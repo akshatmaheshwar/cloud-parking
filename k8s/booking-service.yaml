@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: cloud-parking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - name: booking-service
+          # Fixed: Changed from booking-service:latest:v1.0 to booking-service:v1.0
+          # Docker image tags don't support double colons - use either :latest OR :v1.0
+          image: booking-service:v1.0
+          imagePullPolicy: Never  # Use 'Always' if pulling from a registry
+          ports:
+            - containerPort: 5003
+          
+          # Load environment variables from ConfigMap and Secrets
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          
+          # Specific environment variables for this service
+          # Note: Only include vars that are NOT in the ConfigMap/Secrets
+          env:
+            - name: PORT
+              value: "5003"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_USER
+            - name: DB_NAME
+              value: "parking_booking_db"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_PASSWORD
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:5001"
+            - name: PARKING_SERVICE_URL
+              value: "http://parking-service:5002"
+          
+          # Resource limits to ensure proper scheduling and prevent resource exhaustion
+          resources:
+            requests:
+              memory: "128Mi"  # Minimum memory allocation
+              cpu: "100m"       # Minimum CPU allocation (0.1 core)
+            limits:
+              memory: "256Mi"  # Maximum memory allocation
+              cpu: "200m"       # Maximum CPU allocation (0.2 core)
+          
+          # Liveness probe: Checks if the container is alive
+          # If this fails, Kubernetes will restart the container
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5003
+            initialDelaySeconds: 15  # Wait 15s before first probe
+            periodSeconds: 20         # Check every 20 seconds
+            failureThreshold: 3       # Restart after 3 consecutive failures
+          
+          # Readiness probe: Checks if the container is ready to accept traffic
+          # If this fails, the pod is removed from service endpoints
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5003
+            initialDelaySeconds: 5    # Wait 5s before first probe
+            periodSeconds: 10         # Check every 10 seconds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: cloud-parking
+spec:
+  # This service selects pods with the label app=booking-service
+  selector:
+    app: booking-service
+  ports:
+    # Service port 5003 forwards traffic to container port 5003
+    - port: 5003
+      targetPort: 5003
+      nodePort: 30003
+      protocol: TCP
+      name: http
+  # ClusterIP makes this service only accessible within the cluster
+  type: NodePort

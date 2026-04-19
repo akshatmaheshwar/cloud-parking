@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-scripts
+  namespace: cloud-parking
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS parking_auth_db;
+    CREATE DATABASE IF NOT EXISTS parking_parking_db;
+    CREATE DATABASE IF NOT EXISTS parking_booking_db;
+    
+    GRANT ALL PRIVILEGES ON parking_auth_db.* TO 'root'@'%';
+    GRANT ALL PRIVILEGES ON parking_parking_db.* TO 'root'@'%';
+    GRANT ALL PRIVILEGES ON parking_booking_db.* TO 'root'@'%';
+    FLUSH PRIVILEGES;

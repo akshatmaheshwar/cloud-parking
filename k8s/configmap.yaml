@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: cloud-parking
+data:
+  NODE_ENV: "production"
+  AUTH_SERVICE_URL: "http://auth-service:5001"
+  PARKING_SERVICE_URL: "http://parking-service:5002"
+  BOOKING_SERVICE_URL: "http://booking-service:5003"
+  # Database Configuration
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
+  DB_USER: "root"

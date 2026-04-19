@@ -1,0 +1,44 @@
+# Pod Disruption Budgets for all microservices
+# Ensures at least 1 pod of each service remains available during:
+# - Voluntary disruptions (node maintenance, kubectl drain)
+# - Rolling updates and deployments
+# This provides high availability and prevents complete service outages
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+  namespace: cloud-parking
+spec:
+  # Keep at least 1 pod running at all times
+  minAvailable: 1
+  # Select pods with label app=auth-service
+  selector:
+    matchLabels:
+      app: auth-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: parking-service-pdb
+  namespace: cloud-parking
+spec:
+  # Keep at least 1 pod running at all times
+  minAvailable: 1
+  # Select pods with label app=parking-service
+  selector:
+    matchLabels:
+      app: parking-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: booking-service-pdb
+  namespace: cloud-parking
+spec:
+  # Keep at least 1 pod running at all times
+  minAvailable: 1
+  # Select pods with label app=booking-service
+  selector:
+    matchLabels:
+      app: booking-service

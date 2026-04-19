@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Auth Service
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth-service
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=development
+      - JWT_SECRET=your_super_secret_jwt_key_here_change_this
+      - PORT=5001
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+    networks:
+      - parking-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Parking Service
+  parking-service:
+    build: ./services/parking-service
+    container_name: parking-service
+    ports:
+      - "5002:5002"
+    environment:
+      - NODE_ENV=development
+      - PORT=5002
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - BOOKING_SERVICE_URL=http://booking-service:5003
+    volumes:
+      - ./services/parking-service:/app
+      - /app/node_modules
+    networks:
+      - parking-network
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5002/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Booking Service
+  booking-service:
+    build: ./services/booking-service
+    container_name: booking-service
+    ports:
+      - "5003:5003"
+    environment:
+      - NODE_ENV=development
+      - PORT=5003
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - PARKING_SERVICE_URL=http://parking-service:5002
+    volumes:
+      - ./services/booking-service:/app
+      - /app/node_modules
+    networks:
+      - parking-network
+    depends_on:
+      - auth-service
+      - parking-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5003/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build: ./client
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_AUTH_SERVICE_URL=http://localhost:5001
+      - REACT_APP_PARKING_SERVICE_URL=http://localhost:5003
+      - REACT_APP_BOOKING_SERVICE_URL=http://localhost:5002
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=0
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - parking-network
+    depends_on:
+      - auth-service
+      - parking-service
+      - booking-service
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+networks:
+  parking-network:
+    driver: bridge
